@@ -6,6 +6,7 @@
 
 The FastAPI server exposes a WebSocket endpoint for real-time audio generation.
 </div>
+<div>
 Connect to `ws://<host>:<port>/api/generate/ws`.
 Send a JSON payload:
 ```json
@@ -16,6 +17,7 @@ Send a JSON payload:
    }
 ```
 The server streams back binary messages containing 16-bit PCM audio at 24000 Hz.
+</div>
 <div align="center">
 Close the socket to stop generation; the server will clean up on disconnect.
 
