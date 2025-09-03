@@ -1,6 +1,6 @@
 <div align="center">
 
-## 1 Edits, Added API Server
+## 2 Edits, Added API Server
 
 ## 🎙️ VibeVoice: A Frontier Long Conversational Text-to-Speech Model
 [![Project Page](https://img.shields.io/badge/Project-Page-blue?logo=microsoft)](https://microsoft.github.io/VibeVoice)
