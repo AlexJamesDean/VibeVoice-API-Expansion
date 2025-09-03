@@ -3,7 +3,7 @@ import io
 import os
 import numpy as np
 import soundfile as sf
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File, Form
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel, Field
 from typing import List
@@ -107,6 +107,22 @@ async def generate_batch(
             import traceback
             traceback.print_exc()
             raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
+
+@app.post("/api/voices", tags=["Voices"])
+async def upload_voice(
+    name: str = Form(...),
+    file: UploadFile = File(...),
+    tts_service: TTSService = Depends(get_tts_service),
+):
+    """Register a new voice preset from an uploaded audio file."""
+    try:
+        voice_id = await asyncio.to_thread(tts_service.register_voice, name, file)
+        return {"voice_id": voice_id}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 @app.get("/", tags=["Status"], response_model=HealthCheckResponse)
 def read_root(tts_service: TTSService = Depends(get_tts_service)):
