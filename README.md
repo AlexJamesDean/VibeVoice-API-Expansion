@@ -156,6 +156,16 @@ python demo/inference_from_file.py --model_path WestZhang/VibeVoice-Large-pt --t
 python demo/inference_from_file.py --model_path WestZhang/VibeVoice-Large-pt --txt_path demo/text_examples/2p_music.txt --speaker_names Alice Frank
 ```
 
+### Usage 3: Run API server
+
+The API server limits concurrent generation requests. You can control this limit
+with the `TTS_MAX_CONCURRENCY` environment variable (default `1`).
+
+```bash
+export TTS_MAX_CONCURRENCY=4  # optional, default is 1
+uvicorn api.main:app --host 0.0.0.0 --port 8000
+```
+
 ## FAQ
 #### Q1: Is this a pretrained model?
 **A:** Yes, it's a pretrained model without any post-training or benchmark-specific optimizations. In a way, this makes VibeVoice very versatile and fun to use.
