@@ -1,5 +1,6 @@
 import asyncio
 import io
+import os
 import numpy as np
 import soundfile as sf
 from fastapi import FastAPI, Depends, HTTPException, Request
@@ -42,10 +43,9 @@ class HealthCheckResponse(BaseModel):
     service_initialized: bool
 
 # --- Request Queue and Batching (Concurrency Limiter) ---
-# For now, we use a simple asyncio.Semaphore to limit concurrent requests to 1.
-# This acts as a simple queue, ensuring the GPU is not overloaded.
-# A more advanced implementation could batch requests together.
-concurrency_limiter = asyncio.Semaphore(1)
+# For now, we use an asyncio.Semaphore to limit concurrent requests.
+# `TTS_MAX_CONCURRENCY` controls the maximum number of simultaneous generations.
+concurrency_limiter = asyncio.Semaphore(int(os.getenv("TTS_MAX_CONCURRENCY", 1)))
 
 # --- API Endpoints ---
 @app.post("/api/generate/streaming", tags=["Generation"])
