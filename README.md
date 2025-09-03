@@ -1,13 +1,13 @@
 <div align="center">
 
-## 2 Edits, Added API Server
+## 6 Edits, Added API Server
 
 ### WebSocket Streaming API
 
 The FastAPI server exposes a WebSocket endpoint for real-time audio generation.
 
-1. Connect to `ws://<host>:<port>/api/generate/ws`.
-2. Send a JSON payload:
+Connect to `ws://<host>:<port>/api/generate/ws`.
+Send a JSON payload:
    ```json
    {
      "script": "Speaker 0: Hello!",
@@ -15,7 +15,7 @@ The FastAPI server exposes a WebSocket endpoint for real-time audio generation.
      "cfg_scale": 1.3
    }
    ```
-3. The server streams back binary messages containing 16-bit PCM audio at 24000 Hz.
+The server streams back binary messages containing 16-bit PCM audio at 24000 Hz.
 
 Close the socket to stop generation; the server will clean up on disconnect.
 
