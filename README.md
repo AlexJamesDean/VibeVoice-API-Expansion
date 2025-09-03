@@ -5,18 +5,18 @@
 ### WebSocket Streaming API
 
 The FastAPI server exposes a WebSocket endpoint for real-time audio generation.
-
+</div>
 Connect to `ws://<host>:<port>/api/generate/ws`.
 Send a JSON payload:
 ```json
    {
-           "script": "Speaker 0: Hello!",
-           "speaker_voices": ["en-Alice_woman"],
-           "cfg_scale": 1.3
+   "script": "Speaker 0: Hello!",
+   "speaker_voices": ["en-Alice_woman"],
+   "cfg_scale": 1.3
    }
 ```
 The server streams back binary messages containing 16-bit PCM audio at 24000 Hz.
-
+<div align="center">
 Close the socket to stop generation; the server will clean up on disconnect.
 
 ## 🎙️ VibeVoice: A Frontier Long Conversational Text-to-Speech Model
