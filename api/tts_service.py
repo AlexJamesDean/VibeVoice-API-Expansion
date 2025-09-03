@@ -6,6 +6,7 @@ import os
 import xml.etree.ElementTree as ET
 from typing import List, Dict, Any, AsyncGenerator
 from fastapi import UploadFile
+from collections import OrderedDict
 
 # Import VibeVoice classes
 from vibevoice.modular.modeling_vibevoice_inference import VibeVoiceForConditionalGenerationInference
@@ -32,7 +33,13 @@ class TTSService:
         self.device = device
         self.model = None
         self.processor = None
+        # Preloaded waveform presets
         self.voice_presets = {}
+        # Cache for dynamically registered voices
+        self.voice_cache: "OrderedDict[str, np.ndarray]" = OrderedDict()
+        # Mapping from dynamic voice id to file path for lazy loading
+        self.voice_paths: Dict[str, str] = {}
+        self.max_cache_size = 10
 
         self.load_model()
         self.setup_voice_presets()
@@ -86,9 +93,11 @@ class TTSService:
         for f in os.listdir(voices_dir):
             if f.lower().endswith(('.wav', '.mp3', '.flac', '.ogg', '.m4a', '.aac')):
                 name = os.path.splitext(f)[0]
-                self.voice_presets[name] = os.path.join(voices_dir, f)
+                audio_path = os.path.join(voices_dir, f)
+                # Read once and store waveform in memory
+                self.voice_presets[name] = self._read_audio(audio_path)
 
-        print(f"Loaded {len(self.voice_presets)} voice presets.")
+        print(f"Loaded {len(self.voice_presets)} voice presets into memory.")
 
     def register_voice(self, name: str, file: UploadFile) -> str:
         """Register a new voice sample and return its voice ID."""
@@ -117,8 +126,51 @@ class TTSService:
         with open(save_path, "wb") as out_file:
             shutil.copyfileobj(file.file, out_file)
 
-        self.voice_presets[voice_id] = save_path
+        # Preload waveform and add to cache
+        audio_data = self._read_audio(save_path)
+        self.voice_paths[voice_id] = save_path
+        self._add_to_cache(voice_id, audio_data)
+
         return voice_id
+
+    def _add_to_cache(self, key: str, audio_data: np.ndarray):
+        """Add a waveform to the LRU cache."""
+        self.voice_cache[key] = audio_data
+        self.voice_cache.move_to_end(key)
+        if len(self.voice_cache) > self.max_cache_size:
+            oldest, _ = self.voice_cache.popitem(last=False)
+            self.voice_paths.pop(oldest, None)
+
+    def _get_voice_sample(self, voice_name: str) -> np.ndarray:
+        """Retrieve waveform for a given voice name, using presets or cache."""
+        # Exact match in presets
+        if voice_name in self.voice_presets:
+            return self.voice_presets[voice_name]
+        # Exact match in cache
+        if voice_name in self.voice_cache:
+            self.voice_cache.move_to_end(voice_name)
+            return self.voice_cache[voice_name]
+        # Load from disk if we have a path (dynamically registered voice)
+        if voice_name in self.voice_paths:
+            audio = self._read_audio(self.voice_paths[voice_name])
+            self._add_to_cache(voice_name, audio)
+            return audio
+        # Attempt partial matches in presets
+        for key, audio in self.voice_presets.items():
+            if voice_name.lower() in key.lower():
+                return audio
+        # Partial matches in cached voices
+        for key in list(self.voice_cache.keys()):
+            if voice_name.lower() in key.lower():
+                self.voice_cache.move_to_end(key)
+                return self.voice_cache[key]
+        # Partial matches in paths (not yet cached)
+        for key, path in self.voice_paths.items():
+            if voice_name.lower() in key.lower():
+                audio = self._read_audio(path)
+                self._add_to_cache(key, audio)
+                return audio
+        return None
 
     def _read_audio(self, audio_path: str, target_sr: int = 24000) -> np.ndarray:
         # Adapted from Gradio demo
@@ -163,22 +215,13 @@ class TTSService:
         return recurse(root)
 
     def _prepare_inputs(self, script: str, speaker_voices: List[str], is_ssml: bool = False):
-        # Load voice samples
+        # Load voice samples from memory or cache
         voice_samples = []
         for voice_name in speaker_voices:
-            if voice_name not in self.voice_presets:
-                # Attempt to find a partial match
-                found = False
-                for key in self.voice_presets:
-                    if voice_name.lower() in key.lower():
-                        voice_samples.append(self._read_audio(self.voice_presets[key]))
-                        found = True
-                        break
-                if not found:
-                    raise ValueError(f"Voice preset '{voice_name}' not found.")
-            else:
-                audio_data = self._read_audio(self.voice_presets[voice_name])
-                voice_samples.append(audio_data)
+            audio_data = self._get_voice_sample(voice_name)
+            if audio_data is None:
+                raise ValueError(f"Voice preset '{voice_name}' not found.")
+            voice_samples.append(audio_data)
 
         if is_ssml:
             script = self._parse_ssml(script)
