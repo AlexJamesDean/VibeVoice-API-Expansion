@@ -3,7 +3,7 @@ import io
 import os
 import numpy as np
 import soundfile as sf
-from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File, Form
+from fastapi import FastAPI, Depends, HTTPException, Request,WebSocket, WebSocketDisconnect, UploadFile, File, Form
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel, Field
 from typing import List
@@ -48,6 +48,43 @@ class HealthCheckResponse(BaseModel):
 concurrency_limiter = asyncio.Semaphore(int(os.getenv("TTS_MAX_CONCURRENCY", 1)))
 
 # --- API Endpoints ---
+
+@app.websocket("/api/generate/ws")
+async def generate_ws(
+    websocket: WebSocket,
+    tts_service: TTSService = Depends(get_tts_service)
+):
+    """Generate audio over a WebSocket connection.
+
+    The client must send a JSON message with ``script`` (str), ``speaker_voices``
+    (list[str]) and optional ``cfg_scale`` (float). Binary audio chunks encoded as
+    16-bit PCM at 24000Hz are streamed back over the socket.
+    """
+    await websocket.accept()
+    try:
+        data = await websocket.receive_json()
+        script = data["script"]
+        speaker_voices = data["speaker_voices"]
+        cfg_scale = data.get("cfg_scale", 1.3)
+        async with concurrency_limiter:
+            audio_generator = tts_service.generate_stream_async(
+                script=script,
+                speaker_voices=speaker_voices,
+                cfg_scale=cfg_scale
+            )
+            try:
+                async for chunk in audio_generator:
+                    await websocket.send_bytes(chunk)
+            finally:
+                await audio_generator.aclose()
+        await websocket.close()
+    except WebSocketDisconnect:
+        print("WebSocket disconnected")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        await websocket.close(code=1011)
+
 @app.post("/api/generate/streaming", tags=["Generation"])
 async def generate_streaming(
     request: TTSRequest,
