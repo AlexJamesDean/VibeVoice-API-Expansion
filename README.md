@@ -9,13 +9,11 @@ The FastAPI server exposes a WebSocket endpoint for real-time audio generation.
 <div align="left">
 Connect to `ws://<host>:<port>/api/generate/ws`.
 Send a JSON payload:
-```json
-   {
+{
    "script": "Speaker 0: Hello!",
    "speaker_voices": ["en-Alice_woman"],
    "cfg_scale": 1.3
-   }
-```
+}
 The server streams back binary messages containing 16-bit PCM audio at 24000 Hz.
 </div>
 <div align="center">
