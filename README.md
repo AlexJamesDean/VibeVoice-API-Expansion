@@ -7,7 +7,7 @@
 The FastAPI server exposes a WebSocket endpoint for real-time audio generation.
 </div>
 <div align="left">
-Connect to `ws://<host>:<port>/api/generate/ws`.
+Connect to `ws://<host>:<port>/api/generate/ws`.<br>
 Send a JSON payload:
 {
    "script": "Speaker 0: Hello!",
