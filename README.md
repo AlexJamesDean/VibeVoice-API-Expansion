@@ -14,9 +14,10 @@ Send a JSON payload:<br>
    "speaker_voices": ["en-Alice_woman"],<br>
    "cfg_scale": 1.3<br>
 }<br>
-The server streams back binary messages containing 16-bit PCM audio at 24000 Hz.
 </div>
 <div align="center">
+The server streams back binary messages containing 16-bit PCM audio at 24000 Hz.
+
 Close the socket to stop generation; the server will clean up on disconnect.
 
 ## 🎙️ VibeVoice: A Frontier Long Conversational Text-to-Speech Model
