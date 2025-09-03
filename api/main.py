@@ -37,6 +37,11 @@ class TTSRequest(BaseModel):
         ge=1.0,
         le=2.0
     )
+    is_ssml: bool = Field(
+        default=False,
+        description="Set to true if the provided script uses SSML markup.",
+        example=False
+    )
 
 class HealthCheckResponse(BaseModel):
     status: str
@@ -66,11 +71,13 @@ async def generate_ws(
         script = data["script"]
         speaker_voices = data["speaker_voices"]
         cfg_scale = data.get("cfg_scale", 1.3)
+        is_ssml = data.get("is_ssml", False)
         async with concurrency_limiter:
             audio_generator = tts_service.generate_stream_async(
                 script=script,
                 speaker_voices=speaker_voices,
-                cfg_scale=cfg_scale
+                cfg_scale=cfg_scale,
+                is_ssml=is_ssml
             )
             try:
                 async for chunk in audio_generator:
@@ -99,7 +106,8 @@ async def generate_streaming(
             audio_generator = tts_service.generate_stream_async(
                 script=request.script,
                 speaker_voices=request.speaker_voices,
-                cfg_scale=request.cfg_scale
+                cfg_scale=request.cfg_scale,
+                is_ssml=request.is_ssml
             )
             # The media type 'application/octet-stream' is used for raw binary data.
             # The client should know to interpret this as 16-bit PCM at 24000Hz.
@@ -128,7 +136,8 @@ async def generate_batch(
                 tts_service.generate_batch,
                 script=request.script,
                 speaker_voices=request.speaker_voices,
-                cfg_scale=request.cfg_scale
+                cfg_scale=request.cfg_scale,
+                is_ssml=request.is_ssml
             )
 
             # Convert numpy array to WAV format in memory

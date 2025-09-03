@@ -15,6 +15,17 @@ Send a JSON payload:<br>
    "cfg_scale": 1.3<br>
 }<br>
 </div>
+### SSML Example
+
+To use SSML markup, include `"is_ssml": true` in the request and provide SSML in the `script` field:
+
+```json
+{
+  "script": "<speak>Speaker 0: <emphasis level=\"strong\">Hello</emphasis><break time=\"500ms\"/>world!</speak>",
+  "speaker_voices": ["en-Alice_woman"],
+  "is_ssml": true
+}
+```
 <div align="center">
 The server streams back binary messages containing 16-bit PCM audio at 24000 Hz.
 

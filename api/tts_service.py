@@ -3,6 +3,7 @@ import soundfile as sf
 import librosa
 import numpy as np
 import os
+import xml.etree.ElementTree as ET
 from typing import List, Dict, Any, AsyncGenerator
 from fastapi import UploadFile
 
@@ -128,7 +129,40 @@ class TTSService:
             wav = librosa.resample(wav, orig_sr=sr, target_sr=target_sr)
         return wav
 
-    def _prepare_inputs(self, script: str, speaker_voices: List[str]):
+    def _parse_ssml(self, script: str) -> str:
+        """Parse SSML input and convert tags to model tokens."""
+        try:
+            root = ET.fromstring(script)
+        except ET.ParseError:
+            return script
+
+        def recurse(node):
+            parts = []
+            if node.text:
+                parts.append(node.text)
+            for child in node:
+                if child.tag == "break":
+                    time = child.attrib.get("time", "")
+                    parts.append(f"[break time={time}]")
+                elif child.tag == "emphasis":
+                    level = child.attrib.get("level", "moderate")
+                    parts.append(f"[emphasis level={level}]")
+                    parts.append(recurse(child))
+                    parts.append("[/emphasis]")
+                elif child.tag == "prosody":
+                    attrs = " ".join(f"{k}={v}" for k, v in child.attrib.items())
+                    parts.append(f"[prosody {attrs}]")
+                    parts.append(recurse(child))
+                    parts.append("[/prosody]")
+                else:
+                    parts.append(recurse(child))
+                if child.tail:
+                    parts.append(child.tail)
+            return "".join(parts)
+
+        return recurse(root)
+
+    def _prepare_inputs(self, script: str, speaker_voices: List[str], is_ssml: bool = False):
         # Load voice samples
         voice_samples = []
         for voice_name in speaker_voices:
@@ -146,6 +180,9 @@ class TTSService:
                 audio_data = self._read_audio(self.voice_presets[voice_name])
                 voice_samples.append(audio_data)
 
+        if is_ssml:
+            script = self._parse_ssml(script)
+
         # Prepare model inputs
         inputs = self.processor(
             text=[script],
@@ -156,8 +193,8 @@ class TTSService:
         )
         return inputs.to(self.device)
 
-    async def generate_stream_async(self, script: str, speaker_voices: List[str], cfg_scale: float = 1.3) -> AsyncGenerator[bytes, None]:
-        inputs = self._prepare_inputs(script, speaker_voices)
+    async def generate_stream_async(self, script: str, speaker_voices: List[str], cfg_scale: float = 1.3, is_ssml: bool = False) -> AsyncGenerator[bytes, None]:
+        inputs = self._prepare_inputs(script, speaker_voices, is_ssml)
 
         # Use the AsyncAudioStreamer
         streamer = AsyncAudioStreamer(batch_size=1)
@@ -188,8 +225,8 @@ class TTSService:
 
         thread.join() # Ensure thread is cleaned up
 
-    def generate_batch(self, script: str, speaker_voices: List[str], cfg_scale: float = 1.3) -> (np.ndarray, int):
-        inputs = self._prepare_inputs(script, speaker_voices)
+    def generate_batch(self, script: str, speaker_voices: List[str], cfg_scale: float = 1.3, is_ssml: bool = False) -> (np.ndarray, int):
+        inputs = self._prepare_inputs(script, speaker_voices, is_ssml)
 
         outputs = self.model.generate(
             **inputs,
