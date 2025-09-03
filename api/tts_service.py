@@ -4,6 +4,7 @@ import librosa
 import numpy as np
 import os
 from typing import List, Dict, Any, AsyncGenerator
+from fastapi import UploadFile
 
 # Import VibeVoice classes
 from vibevoice.modular.modeling_vibevoice_inference import VibeVoiceForConditionalGenerationInference
@@ -87,6 +88,36 @@ class TTSService:
                 self.voice_presets[name] = os.path.join(voices_dir, f)
 
         print(f"Loaded {len(self.voice_presets)} voice presets.")
+
+    def register_voice(self, name: str, file: UploadFile) -> str:
+        """Register a new voice sample and return its voice ID."""
+        import uuid
+        import shutil
+
+        # Validate audio metadata
+        try:
+            file.file.seek(0)
+            info = sf.info(file.file)
+        except Exception:
+            raise ValueError("Invalid audio file")
+
+        if info.samplerate < 16000:
+            raise ValueError("Sample rate must be at least 16000 Hz")
+        if info.duration > 30.0:
+            raise ValueError("Audio duration must be 30 seconds or less")
+
+        ext = os.path.splitext(file.filename)[1] or ".wav"
+        voices_dir = "demo/voices"
+        os.makedirs(voices_dir, exist_ok=True)
+        voice_id = f"{name}_{uuid.uuid4().hex[:8]}"
+        save_path = os.path.join(voices_dir, f"{voice_id}{ext}")
+
+        file.file.seek(0)
+        with open(save_path, "wb") as out_file:
+            shutil.copyfileobj(file.file, out_file)
+
+        self.voice_presets[voice_id] = save_path
+        return voice_id
 
     def _read_audio(self, audio_path: str, target_sr: int = 24000) -> np.ndarray:
         # Adapted from Gradio demo
