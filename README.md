@@ -231,3 +231,7 @@ Non-Speech Audio: The model focuses solely on speech synthesis and does not hand
 Overlapping Speech: The current model does not explicitly model or generate overlapping speech segments in conversations.
 
 We do not recommend using VibeVoice in commercial or real-world applications without further testing and development. This model is intended for research and development purposes only. Please use responsibly.
+
+I fix the bugs other devs gaslight you about.
+A I tools, Five M systems, automation pipelines.
+Build it, break it, resurrect it: 👉 https://AJThe.Dev
